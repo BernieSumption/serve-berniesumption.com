@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bernie Sumption</title>
+  <meta name="description" content="Bernie Sumption's portfolio website" />
+  <link rel="icon" href="/favicon.ico" />
+  
+  <link rel="stylesheet" type="text/css" href="/style/main.css">
+</head>
+<body><div id="content">
+  
+
+  
+  <link rel="stylesheet" type="text/css" href="/style/study.css">
+
+  
+  
+    
+    
+    <script type="module">
+import {
+  AmbientLight,
+  CanvasTexture as CanvasTexture2,
+  Color as Color3,
+  MathUtils,
+  Mesh,
+  MeshBasicMaterial,
+  MeshLambertMaterial,
+  MeshPhongMaterial,
+  PlaneGeometry,
+  RingGeometry,
+  SphereGeometry,
+  SpotLight,
+  Vector3 as Vector32
+} from "/vendor/three/three.module.js";
+import { OrbitControls } from "/vendor/three/OrbitControls.js";
+
+import {
+  Color,
+  PerspectiveCamera,
+  Scene,
+  WebGLRenderer
+} from "/vendor/three/three.module.js";
+import Stats from "/vendor/three/stats.module.js";
+var initThreeCanvas = (init) => {
+  const container = document.getElementById("study-container");
+  if (!container) {
+    console.error(`#study-container not found`);
+    return;
+  }
+  let stats;
+  if (document.location.search.indexOf("stats=1") !== -1) {
+    stats = Stats();
+    stats.showPanel(0);
+    document.body.appendChild(stats.dom);
+  }
+  const renderer = new WebGLRenderer({ antialias: true });
+  container.appendChild(renderer.domElement);
+  renderer.setClearColor(new Color(0));
+  const scene = new Scene();
+  const camera = new PerspectiveCamera(45);
+  const handleResize = () => {
+    const width = Math.min(container.offsetWidth, window.innerWidth);
+    const height = Math.min(container.offsetHeight, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+  };
+  handleResize();
+  const updateFunction = init({
+    scene,
+    camera,
+    renderer,
+    startTime: performance.now() / 1e3
+  });
+  const render = () => renderer.render(scene, camera);
+  let cancelled = false;
+  if (updateFunction) {
+    const updateAndRender = () => {
+      if (!cancelled) {
+        stats == null ? void 0 : stats.begin();
+        window.requestAnimationFrame(updateAndRender);
+        updateFunction(performance.now() / 1e3);
+        renderer.render(scene, camera);
+        stats == null ? void 0 : stats.end();
+      }
+    };
+    updateAndRender();
+  } else {
+    renderer.render(scene, camera);
+  }
+  onResize(container, () => {
+    handleResize();
+    render();
+  });
+};
+var onResize = (el, callback) => {
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(() => callback());
+    observer.observe(el);
+  } else {
+    window.addEventListener("resize", () => callback());
+  }
+};
+
+import {
+  CanvasTexture,
+  TextureLoader,
+  Triangle,
+  Vector3
+} from "/vendor/three/three.module.js";
+var memoize = (f) => {
+  let cache;
+  let called = false;
+  return function(...args) {
+    if (!called) {
+      called = true;
+      cache = f.apply(this, args);
+    }
+    return cache;
+  };
+};
+var renderShadowTexture = (size, color) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const r = size / 2;
+  const gradient = ctx.createRadialGradient(r, r, 0, r, r, r);
+  for (let i = 0; i <= 10; i++) {
+    const r2 = Math.round(color.r * 255);
+    const g = Math.round(color.g * 255);
+    const b = Math.round(color.b * 255);
+    const progress = i / 10;
+    const alpha = -(Math.cos(Math.PI * (1 - progress)) - 1) / 2;
+    gradient.addColorStop(progress, `rgba(${r2}, ${g}, ${b}, ${alpha})`);
+  }
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  return new CanvasTexture(canvas);
+};
+var triangle = new Triangle();
+var degrees = (d) => d / 180 * Math.PI;
+
+var floorRadius = 10;
+var emitterCount = 15;
+var twoPi = Math.PI * 2;
+var ballInitialAngle = degrees(25);
+var ballInitialSpeed = 9;
+var ballRadius = 0.2;
+var pingSize = 2;
+var bounceAttenuation = 0.8;
+var ballFadeOutDistance = 5;
+var ballSaturation = 1;
+var ballLightness = 0.5;
+var pingDuration = 1;
+var shadowStartHeight = 2;
+var shadowLowSize = 1;
+var shadowHighSize = 1;
+var shadowLowOpacity = 0.5;
+var ballGeometry = new SphereGeometry(ballRadius, 10, 10);
+var pingGeometry = new PlaneGeometry(pingSize, pingSize);
+var shadowGeometry = new PlaneGeometry();
+var Ball = class {
+  constructor(scene, yRotation) {
+    this.scene = scene;
+    this.pingProgression = 0;
+    this.hue = yRotation / 2 / Math.PI;
+    this.ballMaterial = new MeshPhongMaterial({
+      color: new Color3().setHSL(this.hue, ballSaturation, ballLightness),
+      specular: new Color3(2236962)
+    });
+    this.ballMesh = new Mesh(ballGeometry, this.ballMaterial);
+    this.ballMesh.position.set(0, 0.5, 0);
+    scene.add(this.ballMesh);
+    this.pingMaterial = new MeshBasicMaterial({
+      map: getBallPingTexture(),
+      color: new Color3(2241467),
+      transparent: true,
+      depthWrite: false
+    });
+    this.pingMesh = new Mesh(pingGeometry, this.pingMaterial);
+    this.pingMesh.rotation.x = -0.5 * Math.PI;
+    scene.add(this.pingMesh);
+    this.shadowMaterial = new MeshBasicMaterial({
+      map: getBallShadowTexture(),
+      transparent: true,
+      depthWrite: false
+    });
+    this.shadowMesh = new Mesh(shadowGeometry, this.shadowMaterial);
+    this.shadowMesh.rotation.x = -0.5 * Math.PI;
+    scene.add(this.shadowMesh);
+    this.velocity = new Vector32(0, 1, 0).normalize().multiplyScalar(ballInitialSpeed).applyAxisAngle(new Vector32(1, 0, 0), ballInitialAngle).applyAxisAngle(new Vector32(0, 1, 0), yRotation);
+  }
+  update(dt) {
+    const position = this.ballMesh.position;
+    this.velocity.y -= 9.81 * dt;
+    position.addScaledVector(this.velocity, dt);
+    if (position.y < ballRadius && position.length() < floorRadius + ballRadius) {
+      position.y = ballRadius + (ballRadius - position.y);
+      this.velocity.y *= -1;
+      this.velocity.multiplyScalar(bounceAttenuation + 0);
+      this.pingMesh.position.set(position.x, 0.2, position.z);
+      this.pingProgression = pingDuration;
+    }
+    if (position.y < 0) {
+      const fade = 1 - -position.y / ballFadeOutDistance;
+      this.ballMaterial.color.setHSL(
+        this.hue,
+        ballSaturation,
+        ballLightness * fade
+      );
+    }
+    if (this.pingProgression > 0) {
+      const progress = 1 - this.pingProgression / pingDuration;
+      this.pingMaterial.opacity = 1 - progress;
+      this.pingMesh.scale.setScalar(progress * 0.34 + 0.66);
+    } else {
+      this.pingMaterial.opacity = 0;
+    }
+    this.pingProgression = Math.max(0, this.pingProgression - dt);
+    this.shadowMesh.position.set(position.x, 0.01, position.z);
+    const shadowProgression = MathUtils.clamp(
+      1 - position.y / shadowStartHeight,
+      0,
+      1
+    );
+    const shadowSize = MathUtils.lerp(
+      shadowHighSize,
+      shadowLowSize,
+      shadowProgression
+    );
+    const shadowArea = shadowSize * shadowSize;
+    const maxShadowArea = shadowHighSize * shadowHighSize;
+    this.shadowMaterial.opacity = shadowProgression * shadowLowOpacity * (shadowArea / maxShadowArea);
+    this.shadowMesh.scale.setScalar(shadowSize);
+  }
+  alive() {
+    return this.ballMesh.position.y > -ballFadeOutDistance;
+  }
+  remove() {
+    this.scene.remove(this.ballMesh);
+    this.scene.remove(this.pingMesh);
+  }
+};
+var getBallShadowTexture = memoize(
+  () => renderShadowTexture(128, new Color3(0))
+);
+var getBallPingTexture = memoize(() => {
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const r = size / 2;
+  const gradient = ctx.createRadialGradient(r, r, 0, r, r, r);
+  gradient.addColorStop(0.6, `rgba(255, 255, 255, 0)`);
+  gradient.addColorStop(0.99, `rgba(255, 255, 255, 1)`);
+  gradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  return new CanvasTexture2(canvas);
+});
+var Emitter = class {
+  constructor(scene, yRotation, period) {
+    this.scene = scene;
+    this.yRotation = yRotation;
+    this.period = period;
+    this.timeToNextEmit = 0;
+  }
+  update(dt) {
+    this.timeToNextEmit -= dt;
+    if (this.timeToNextEmit <= 0) {
+      const ball = new Ball(this.scene, this.yRotation);
+      ball.update(-this.timeToNextEmit);
+      this.timeToNextEmit += this.period;
+      return ball;
+    }
+  }
+};
+initThreeCanvas(({ scene, camera, renderer, startTime }) => {
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.rotateSpeed = 0.1;
+  controls.enableZoom = false;
+  controls.enablePan = false;
+  controls.enableDamping = true;
+  const floor = new Mesh(
+    new RingGeometry(1, floorRadius, 50),
+    new MeshLambertMaterial({ color: 11184810 })
+  );
+  floor.rotation.x = -0.5 * Math.PI;
+  floor.position.set(0, 0, 0);
+  scene.add(floor);
+  const emitters = [];
+  const balls = [];
+  for (let i = 0; i < emitterCount; i++) {
+    const oscillationsPerMinute = 51 + i;
+    const period = oscillationsPerMinute / 60 + 1;
+    emitters.push(new Emitter(scene, i / emitterCount * twoPi, period));
+  }
+  camera.position.set(-15, 20, 15);
+  camera.lookAt(scene.position);
+  const light = new SpotLight(16777215);
+  light.position.set(5, 20, 5);
+  scene.add(light);
+  const ambientLight = new AmbientLight(16777215, 0.25);
+  scene.add(ambientLight);
+  let lastTime = startTime;
+  return (time) => {
+    const dt = Math.min(time - lastTime, 1 / 30);
+    lastTime = time;
+    emitters.forEach((e) => {
+      const ball = e.update(dt);
+      if (ball) {
+        balls.push(ball);
+      }
+    });
+    balls.forEach((b) => {
+      b.update(dt);
+      if (!b.alive()) {
+        b.remove();
+        balls.splice(balls.indexOf(b), 1);
+      }
+    });
+    controls.update();
+  };
+});
+</script>
+  
+
+  <div id="study-container"></div>
+  
+</div></body>
+</html>

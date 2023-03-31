@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bernie Sumption</title>
+  <meta name="description" content="Bernie Sumption's portfolio website" />
+  <link rel="icon" href="/favicon.ico" />
+  
+  <link rel="stylesheet" type="text/css" href="/style/main.css">
+</head>
+<body><div id="content">
+  
+
+  
+  <link rel="stylesheet" type="text/css" href="/style/study.css">
+
+  
+  
+    
+    
+    <script type="module">
+import {
+  AmbientLight,
+  CircleGeometry,
+  Color as Color3,
+  Float32BufferAttribute,
+  HemisphereLight,
+  IcosahedronGeometry,
+  Mesh,
+  MeshBasicMaterial,
+  MeshPhongMaterial,
+  PlaneGeometry,
+  SpotLight
+} from "/vendor/three/three.module.js";
+import { OrbitControls } from "/vendor/three/OrbitControls.js";
+
+import {
+  Color,
+  PerspectiveCamera,
+  Scene,
+  WebGLRenderer
+} from "/vendor/three/three.module.js";
+import Stats from "/vendor/three/stats.module.js";
+var initThreeCanvas = (init) => {
+  const container = document.getElementById("study-container");
+  if (!container) {
+    console.error(`#study-container not found`);
+    return;
+  }
+  let stats;
+  if (document.location.search.indexOf("stats=1") !== -1) {
+    stats = Stats();
+    stats.showPanel(0);
+    document.body.appendChild(stats.dom);
+  }
+  const renderer = new WebGLRenderer({ antialias: true });
+  container.appendChild(renderer.domElement);
+  renderer.setClearColor(new Color(0));
+  const scene = new Scene();
+  const camera = new PerspectiveCamera(45);
+  const handleResize = () => {
+    const width = Math.min(container.offsetWidth, window.innerWidth);
+    const height = Math.min(container.offsetHeight, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+  };
+  handleResize();
+  const updateFunction = init({
+    scene,
+    camera,
+    renderer,
+    startTime: performance.now() / 1e3
+  });
+  const render = () => renderer.render(scene, camera);
+  let cancelled = false;
+  if (updateFunction) {
+    const updateAndRender = () => {
+      if (!cancelled) {
+        stats == null ? void 0 : stats.begin();
+        window.requestAnimationFrame(updateAndRender);
+        updateFunction(performance.now() / 1e3);
+        renderer.render(scene, camera);
+        stats == null ? void 0 : stats.end();
+      }
+    };
+    updateAndRender();
+  } else {
+    renderer.render(scene, camera);
+  }
+  onResize(container, () => {
+    handleResize();
+    render();
+  });
+};
+var onResize = (el, callback) => {
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(() => callback());
+    observer.observe(el);
+  } else {
+    window.addEventListener("resize", () => callback());
+  }
+};
+
+import {
+  CanvasTexture,
+  TextureLoader,
+  Triangle,
+  Vector3
+} from "/vendor/three/three.module.js";
+var renderShadowTexture = (size, color) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const r = size / 2;
+  const gradient = ctx.createRadialGradient(r, r, 0, r, r, r);
+  for (let i = 0; i <= 10; i++) {
+    const r2 = Math.round(color.r * 255);
+    const g = Math.round(color.g * 255);
+    const b = Math.round(color.b * 255);
+    const progress = i / 10;
+    const alpha = -(Math.cos(Math.PI * (1 - progress)) - 1) / 2;
+    gradient.addColorStop(progress, `rgba(${r2}, ${g}, ${b}, ${alpha})`);
+  }
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  return new CanvasTexture(canvas);
+};
+var faceCentroid = (positions, faceIndex) => {
+  const start = faceIndex * 3;
+  const centroid = new Vector3(
+    positions.getX(start + 0) + positions.getX(start + 1) + positions.getX(start + 2),
+    positions.getY(start + 0) + positions.getY(start + 1) + positions.getY(start + 2),
+    positions.getZ(start + 0) + positions.getZ(start + 1) + positions.getZ(start + 2)
+  );
+  return centroid.divideScalar(3);
+};
+var triangle = new Triangle();
+var shuffle = (arr) => {
+  for (let i = arr.length - 1; i > 0; i--) {
+    let j = Math.floor(Math.random() * (i + 1));
+    let x = arr[i];
+    arr[i] = arr[j];
+    arr[j] = x;
+  }
+  return arr;
+};
+var sortBy = (arr, f) => arr.sort((a, b) => {
+  let aValue = f(a);
+  let bValue = f(b);
+  if (aValue < bValue) {
+    return -1;
+  }
+  if (aValue > bValue) {
+    return 1;
+  }
+  return 0;
+});
+
+var outExpo = (t) => -Math.pow(2, -10 * t) + 1;
+
+var shapeComplexity = 4;
+var timeBetweenTransitions = 5;
+var transitionDuration = 2;
+var transitionOffset = 1;
+var shadowTransitionDuration = 2;
+var shadowTransitionDelay = 1.75;
+var peakActiveChance = 0.85;
+var activeChancePower = 8;
+var colorSequence = [
+  [255, 128, 0],
+  [128, 0, 255],
+  [0, 255, 128],
+  [255, 0, 128],
+  [0, 128, 255],
+  [128, 255, 0]
+];
+var threeColorSequence = colorSequence.map(
+  (cs) => new Color3(cs[0] / 255, cs[1] / 255, cs[2] / 255)
+);
+var activeColor = [255, 255, 255];
+var Face = class {
+  constructor(positions, colors, faceIndex) {
+    this.colors = colors;
+    this.faceIndex = faceIndex;
+    this.transitionStartTime = 0;
+    this.currentTime = 0;
+    this.from = colorSequence[0];
+    this.to = colorSequence[0];
+    this.proportionalPosition = 0;
+    this.centroid = faceCentroid(positions, faceIndex);
+    this.setColor(colorSequence[0]);
+  }
+  update(time) {
+    this.currentTime = time;
+    if (this.currentTime < this.transitionStartTime)
+      return;
+    const progress = Math.min(
+      1,
+      (time - this.transitionStartTime) / transitionDuration
+    );
+    const whiteChance = Math.pow(1 - Math.abs(progress * 2 - 1), activeChancePower) * peakActiveChance;
+    if (Math.random() < whiteChance) {
+      this.setColor(activeColor);
+    } else if (progress < 0.5) {
+      this.setColor(this.from);
+    } else {
+      this.setColor(this.to);
+    }
+  }
+  startTransition(from, to) {
+    this.from = colorSequence[from];
+    this.to = colorSequence[to];
+    this.transitionStartTime = this.currentTime + this.proportionalPosition * transitionOffset;
+  }
+  setColor(color) {
+    const start = this.faceIndex * 3;
+    this.colors.setXYZ(start, ...color);
+    this.colors.setXYZ(start + 1, ...color);
+    this.colors.setXYZ(start + 2, ...color);
+    this.colors.needsUpdate = true;
+  }
+};
+var Shadow = class extends Mesh {
+  constructor() {
+    super(
+      new PlaneGeometry(20, 20),
+      new MeshBasicMaterial({
+        map: renderShadowTexture(1024, new Color3(3158064)),
+        color: threeColorSequence[0],
+        transparent: true,
+        depthWrite: false,
+        opacity: 0.65
+      })
+    );
+    this.transitionStartTime = 0;
+    this.currentTime = 0;
+    this.from = threeColorSequence[0];
+    this.to = threeColorSequence[0];
+    this.proportionalPosition = 0;
+    this.rotation.x = -0.5 * Math.PI;
+    this.position.setY(-11.9);
+  }
+  startTransition(from, to) {
+    this.from = threeColorSequence[from];
+    this.to = threeColorSequence[to];
+    this.transitionStartTime = this.currentTime + shadowTransitionDelay;
+  }
+  update(time) {
+    this.currentTime = time;
+    if (this.currentTime < this.transitionStartTime)
+      return;
+    const progress = Math.min(
+      1,
+      (time - this.transitionStartTime) / shadowTransitionDuration
+    );
+    this.material.color = this.from.lerp(
+      this.to,
+      progress
+    );
+  }
+};
+initThreeCanvas(({ scene, camera, renderer }) => {
+  renderer.setClearColor(new Color3(10066329));
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.rotateSpeed = 0.1;
+  controls.enableZoom = false;
+  controls.enablePan = false;
+  controls.enableDamping = true;
+  controls.minPolarAngle = 0;
+  controls.maxPolarAngle = Math.PI * 0.5;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.25;
+  camera.position.set(-30, 9, 11);
+  camera.lookAt(scene.position);
+  const spotLight = new SpotLight(2236962);
+  spotLight.position.set(5, 20, 5);
+  scene.add(spotLight);
+  scene.add(new HemisphereLight(16777215, 526344, 1));
+  scene.add(new AmbientLight(16777215, 0.1));
+  const material = new MeshPhongMaterial({
+    color: new Color3(65793),
+    specular: new Color3(5592405),
+    flatShading: true,
+    vertexColors: true
+  });
+  const ballGeometry = new IcosahedronGeometry(10, shapeComplexity);
+  const ball = new Mesh(ballGeometry, material);
+  scene.add(ball);
+  const vertices = ballGeometry.getAttribute("position");
+  const colors = new Float32BufferAttribute(vertices.count * 3, 3);
+  let faces = [];
+  const faceCount = vertices.count / 3;
+  for (let i = 0; i < faceCount; ++i) {
+    faces.push(new Face(vertices, colors, i));
+  }
+  faces = shuffle(faces);
+  faces = sortBy(faces, (f) => f.centroid.y).reverse();
+  faces.forEach((f, i) => {
+    f.proportionalPosition = i / faces.length;
+  });
+  ballGeometry.setAttribute("color", colors);
+  const shadow = new Shadow();
+  scene.add(shadow);
+  const floor = new Mesh(
+    new CircleGeometry(100, 50),
+    new MeshPhongMaterial({ color: 11184810 })
+  );
+  floor.rotation.x = -0.5 * Math.PI;
+  floor.position.set(0, -12, 0);
+  scene.add(floor);
+  let currentColorIndex = 0;
+  return (time) => {
+    ball.scale.setScalar(time >= 3 ? 1 : outExpo(time / 3));
+    const thisColorIndex = Math.floor(time / timeBetweenTransitions) % colorSequence.length;
+    if (thisColorIndex !== currentColorIndex) {
+      startTransitions(thisColorIndex);
+    }
+    faces.forEach((f) => f.update(time));
+    shadow.update(time);
+    controls.update();
+  };
+  function startTransitions(nextColorIndex) {
+    faces.forEach((f) => f.startTransition(currentColorIndex, nextColorIndex));
+    shadow.startTransition(currentColorIndex, nextColorIndex);
+    currentColorIndex = nextColorIndex;
+  }
+});
+</script>
+  
+
+  <div id="study-container"></div>
+  
+</div></body>
+</html>

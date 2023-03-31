@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bernie Sumption</title>
+  <meta name="description" content="Bernie Sumption's portfolio website" />
+  <link rel="icon" href="/favicon.ico" />
+  
+  <link rel="stylesheet" type="text/css" href="/style/main.css">
+</head>
+<body><div id="content">
+  
+
+  
+  <link rel="stylesheet" type="text/css" href="/style/study.css">
+
+  
+  
+    
+    
+    <script type="module">
+import {
+  AmbientLight,
+  CylinderGeometry,
+  InstancedMesh,
+  MeshPhongMaterial,
+  Object3D,
+  SphereGeometry,
+  SpotLight,
+  Matrix4,
+  Vector3 as Vector32
+} from "/vendor/three/three.module.js";
+import { OrbitControls } from "/vendor/three/OrbitControls.js";
+
+import {
+  Color,
+  PerspectiveCamera,
+  Scene,
+  WebGLRenderer
+} from "/vendor/three/three.module.js";
+import Stats from "/vendor/three/stats.module.js";
+var initThreeCanvas = (init) => {
+  const container = document.getElementById("study-container");
+  if (!container) {
+    console.error(`#study-container not found`);
+    return;
+  }
+  let stats;
+  if (document.location.search.indexOf("stats=1") !== -1) {
+    stats = Stats();
+    stats.showPanel(0);
+    document.body.appendChild(stats.dom);
+  }
+  const renderer = new WebGLRenderer({ antialias: true });
+  container.appendChild(renderer.domElement);
+  renderer.setClearColor(new Color(0));
+  const scene = new Scene();
+  const camera = new PerspectiveCamera(45);
+  const handleResize = () => {
+    const width = Math.min(container.offsetWidth, window.innerWidth);
+    const height = Math.min(container.offsetHeight, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+  };
+  handleResize();
+  const updateFunction = init({
+    scene,
+    camera,
+    renderer,
+    startTime: performance.now() / 1e3
+  });
+  const render = () => renderer.render(scene, camera);
+  let cancelled = false;
+  if (updateFunction) {
+    const updateAndRender = () => {
+      if (!cancelled) {
+        stats == null ? void 0 : stats.begin();
+        window.requestAnimationFrame(updateAndRender);
+        updateFunction(performance.now() / 1e3);
+        renderer.render(scene, camera);
+        stats == null ? void 0 : stats.end();
+      }
+    };
+    updateAndRender();
+  } else {
+    renderer.render(scene, camera);
+  }
+  onResize(container, () => {
+    handleResize();
+    render();
+  });
+};
+var onResize = (el, callback) => {
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(() => callback());
+    observer.observe(el);
+  } else {
+    window.addEventListener("resize", () => callback());
+  }
+};
+
+import {
+  CanvasTexture,
+  TextureLoader,
+  Triangle,
+  Vector3
+} from "/vendor/three/three.module.js";
+var randomPointOnFace = (positions, faceIndex, result = new Vector3()) => {
+  const start = faceIndex * 3;
+  const ax = positions.getX(start + 0);
+  const ay = positions.getY(start + 0);
+  const az = positions.getZ(start + 0);
+  const bx = positions.getX(start + 1);
+  const by = positions.getY(start + 1);
+  const bz = positions.getZ(start + 1);
+  const cx = positions.getX(start + 2);
+  const cy = positions.getY(start + 2);
+  const cz = positions.getZ(start + 2);
+  const v1x = bx - ax;
+  const v1y = by - ay;
+  const v1z = bz - az;
+  const v2x = cx - ax;
+  const v2y = cy - ay;
+  const v2z = cz - az;
+  let p1 = Math.random();
+  let p2 = Math.random();
+  if (p1 + p2 > 1) {
+    p1 = 1 - p1;
+    p2 = 1 - p2;
+  }
+  return result.set(
+    ax + v1x * p1 + v2x * p2,
+    ay + v1y * p1 + v2y * p2,
+    az + v1z * p1 + v2z * p2
+  );
+};
+var triangle = new Triangle();
+var faceArea = (positions, faceIndex) => {
+  const start = faceIndex * 3;
+  triangle.a.set(
+    positions.getX(start + 0),
+    positions.getY(start + 0),
+    positions.getZ(start + 0)
+  );
+  triangle.b.set(
+    positions.getX(start + 1),
+    positions.getY(start + 1),
+    positions.getZ(start + 1)
+  );
+  triangle.c.set(
+    positions.getX(start + 2),
+    positions.getY(start + 2),
+    positions.getZ(start + 2)
+  );
+  return triangle.getArea();
+};
+
+var strandCount = 1e3;
+var strandRadiusBase = 0.02;
+var strandRadiusTop = 2e-3;
+var strandHeight = 1;
+var Furry = class extends Object3D {
+  constructor(geometry) {
+    super();
+    this.geometry = geometry;
+    this.generateFur();
+  }
+  generateFur() {
+    const vertices = this.geometry.toNonIndexed().getAttribute("position");
+    const faceCount = vertices.count / 3;
+    const mesh = new InstancedMesh(
+      new CylinderGeometry(
+        strandRadiusTop,
+        strandRadiusBase,
+        strandHeight,
+        4,
+        4,
+        true
+      ).rotateX(Math.PI / 2),
+      new StrandMaterial({ color: 16711816, specular: 2236962 }),
+      strandCount
+    );
+    this.add(mesh);
+    const slotsPerFace = 10;
+    const slots = new Int32Array(faceCount * slotsPerFace + faceCount);
+    let slotCount = 0;
+    const areas = new Float32Array(faceCount);
+    areas.forEach((_, i) => areas[i] = faceArea(vertices, i));
+    const totalArea = areas.reduce((a, b) => a + b, 0);
+    areas.forEach((area, i) => {
+      const thisAreaSlotCount = Math.round(
+        area / totalArea * faceCount * slotsPerFace
+      );
+      for (let j = 0; j < thisAreaSlotCount; j++) {
+        slots[++slotCount] = i;
+      }
+    });
+    const mat = new Matrix4();
+    const origin = new Vector32();
+    const up = new Vector32(1, 0, 0);
+    for (let i = 0; i < strandCount; ++i) {
+      const faceIndex = slots[Math.floor(Math.random() * slotCount)];
+      const strandStart = randomPointOnFace(vertices, faceIndex);
+      mat.setPosition(strandStart.x, strandStart.y, strandStart.z);
+      mat.lookAt(strandStart, origin, up);
+      mesh.setMatrixAt(i, mat);
+    }
+  }
+};
+var StrandMaterial = class extends MeshPhongMaterial {
+  onBeforeCompile(shader, renderer) {
+    super.onBeforeCompile(shader, renderer);
+    shader.vertexShader = shader.vertexShader.replace(
+      "#include <begin_vertex>",
+      `
+        vec3 transformed = vec3( position );
+      `
+    );
+  }
+};
+initThreeCanvas(({ scene, camera, renderer }) => {
+  renderer.setClearColor(35071);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.rotateSpeed = 0.1;
+  controls.enableZoom = false;
+  controls.enablePan = false;
+  controls.enableDamping = true;
+  const light = new SpotLight(16777215);
+  light.position.set(5, 20, 5);
+  scene.add(light);
+  scene.add(new AmbientLight(16777215, 0.25));
+  scene.add(new Furry(new SphereGeometry(0.5)));
+  camera.position.set(2, 2, 2);
+  camera.lookAt(scene.position);
+  return () => {
+    controls.update();
+  };
+});
+</script>
+  
+
+  <div id="study-container"></div>
+  
+</div></body>
+</html>
