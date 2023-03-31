@@ -4,15 +4,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Bernie Sumption</title>
   <meta name="description" content="Bernie Sumption's portfolio website" />
-  <link rel="icon" href="/favicon.ico" />
+  <link rel="icon" href="../../favicon.ico" />
   
-  <link rel="stylesheet" type="text/css" href="/style/main.css">
+  <link rel="stylesheet" type="text/css" href="../../style/main.css">
 </head>
 <body><div id="content">
   
 
   
-  <link rel="stylesheet" type="text/css" href="/style/study.css">
+  <link rel="stylesheet" type="text/css" href="../../style/study.css">
 
   
   
@@ -33,16 +33,16 @@ import {
   SphereGeometry,
   SpotLight,
   Vector3 as Vector32
-} from "/vendor/three/three.module.js";
-import { OrbitControls } from "/vendor/three/OrbitControls.js";
+} from "../../vendor/three/three.module.js";
+import { OrbitControls } from "../../vendor/three/OrbitControls.js";
 
 import {
   Color,
   PerspectiveCamera,
   Scene,
   WebGLRenderer
-} from "/vendor/three/three.module.js";
-import Stats from "/vendor/three/stats.module.js";
+} from "../../vendor/three/three.module.js";
+import Stats from "../../vendor/three/stats.module.js";
 var initThreeCanvas = (init) => {
   const container = document.getElementById("study-container");
   if (!container) {
@@ -110,7 +110,7 @@ import {
   TextureLoader,
   Triangle,
   Vector3
-} from "/vendor/three/three.module.js";
+} from "../../vendor/three/three.module.js";
 var memoize = (f) => {
   let cache;
   let called = false;
